@@ -8,7 +8,6 @@ st.set_page_config(page_title='MongoDB Student Demo', page_icon='🎓', layout='
 # MongoDB Connection
 # -----------------------------
 # FIXED: Using a safe TOML key lookup instead of passing the raw URI string
-MONGO_URI = st.secrets["MONGO_URI"]
 client = MongoClient(MONGO_URI)
 db = client['college_db']
 students = db['students']
