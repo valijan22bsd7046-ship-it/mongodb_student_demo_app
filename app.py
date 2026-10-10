@@ -7,7 +7,8 @@ st.set_page_config(page_title='MongoDB Student Demo', page_icon='🎓', layout='
 # -----------------------------
 # MongoDB Connection
 # -----------------------------
-MONGO_URI = st.secrets["mongodb+srv://valijan22bsd7046_db_user:fAKAvEn8ljeuHwyO@test.rr3v477.mongodb.net/?appName=test"]
+# FIXED: Using a safe TOML key lookup instead of passing the raw URI string
+MONGO_URI = st.secrets["MONGO_URI"]
 client = MongoClient(MONGO_URI)
 db = client['college_db']
 students = db['students']
@@ -216,11 +217,12 @@ elif page == 'Update/Delete':
 # Student Records
 # -----------------------------
 elif page == 'Student Records':
-    st.title('📋 Student Records')
-    st.caption('MongoDB concept: find()')
+    st.title('📋 All Student Records')
+    st.caption('MongoDB concept: find({}, {"_id": 0})')
+
     df = load_students()
     if df.empty:
-        st.info('No student records available.')
+        st.info("The database is currently empty.")
     else:
         st.dataframe(df, use_container_width=True)
 
@@ -228,62 +230,40 @@ elif page == 'Student Records':
 # Analytics
 # -----------------------------
 elif page == 'Analytics':
-    st.title('📊 MongoDB Aggregation Analytics')
-    st.caption('MongoDB concepts: aggregate(), $unwind, $group, $avg, $sort, $limit')
+    st.title('📊 Performance Analytics')
+    st.caption('MongoDB concepts: aggregate(), $unwind, $group, $avg')
 
-    st.subheader('1. Average Marks by Subject')
+    # Aggregation pipeline to calculate average marks per subject
     pipeline = [
         {'$unwind': '$subjects'},
-        {'$group': {'_id': '$subjects.name', 'average_marks': {'$avg': '$subjects.marks'}}},
-        {'$sort': {'average_marks': -1}},
-    ]
-    avg_results = list(students.aggregate(pipeline))
-    if avg_results:
-        avg_df = pd.DataFrame([
-            {'Subject': r['_id'], 'Average Marks': round(r['average_marks'], 2)} for r in avg_results
-        ])
-        st.dataframe(avg_df, use_container_width=True)
-        st.bar_chart(avg_df.set_index('Subject'))
-    else:
-        st.info('No data available.')
-
-    st.code('''[
-  {"$unwind": "$subjects"},
-  {"$group": {"_id": "$subjects.name", "average_marks": {"$avg": "$subjects.marks"}}},
-  {"$sort": {"average_marks": -1}}
-]''', language='json')
-
-    st.subheader('2. Number of Students by City')
-    city_pipeline = [
-        {'$group': {'_id': '$city', 'count': {'$sum': 1}}},
-        {'$sort': {'count': -1}},
-    ]
-    city_results = list(students.aggregate(city_pipeline))
-    if city_results:
-        city_df = pd.DataFrame([
-            {'City': r['_id'] or 'Unknown', 'Students': r['count']} for r in city_results
-        ])
-        st.dataframe(city_df, use_container_width=True)
-        st.bar_chart(city_df.set_index('City'))
-
-    st.subheader('3. Top 5 Students by Average Marks')
-    top_pipeline = [
-        {'$unwind': '$subjects'},
-        {'$group': {
-            '_id': {'student_id': '$student_id', 'name': '$name'},
-            'average_marks': {'$avg': '$subjects.marks'}
-        }},
-        {'$sort': {'average_marks': -1}},
-        {'$limit': 5}
-    ]
-    top_results = list(students.aggregate(top_pipeline))
-    if top_results:
-        top_df = pd.DataFrame([
-            {
-                'Student ID': r['_id']['student_id'],
-                'Name': r['_id']['name'],
-                'Average Marks': round(r['average_marks'], 2)
+        {
+            '$group': {
+                '_id': '$subjects.name',
+                'Average Marks': {'$avg': '$subjects.marks'},
+                'Max Marks': {'$max': '$subjects.marks'},
+                'Min Marks': {'$min': '$subjects.marks'}
             }
-            for r in top_results
-        ])
-        st.dataframe(top_df, use_container_width=True)
+        }
+    ]
+
+    if st.button('Run Aggregation Pipeline'):
+        st.write('MongoDB Aggregation Pipeline:')
+        st.code(str(pipeline), language='python')
+        
+        results = list(students.aggregate(pipeline))
+        
+        if results:
+            # Format results into a clean dataframe
+            analytics_data = []
+            for r in results:
+                analytics_data.append({
+                    'Subject': r['_id'],
+                    'Average': round(r['Average Marks'], 2),
+                    'Highest Score': r['Max Marks'],
+                    'Lowest Score': r['Min Marks']
+                })
+            
+            df_analytics = pd.DataFrame(analytics_data)
+            st.dataframe(df_analytics, use_container_width=True)
+            
+            # Simple bar chart for averages
