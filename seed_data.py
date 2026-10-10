@@ -1,6 +1,6 @@
 from pymongo import MongoClient
 
-client = MongoClient('mongodb+srv://Avi:6MpYPiezMdCC78kG@test.rr3v477.mongodb.net/?appName=test')
+client = MongoClient('mongodb+srv://valijan22bsd7046_db_user:fAKAvEn8ljeuHwyO@test.rr3v477.mongodb.net/?appName=test')
 db = client['college_db']
 students = db['students']
 
